@@ -109,30 +109,73 @@ jobs:
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "📦 Current version in package.json: $PKG_VERSION"
 
-          # Always get the latest published version from npm to use as base
-          echo "🔍 Checking npm registry for latest published version..."
+          # Always get the HIGHEST published version from npm (not just "latest" tag)
+          echo "🔍 Checking npm registry for highest published version..."
           BASE_VERSION="$PKG_VERSION"
-
-          if npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org > /dev/null 2>&1; then
-            NPM_VERSION=$(npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org)
-            echo "📌 Latest version on npm: $NPM_VERSION"
+          
+          # Get all versions from npm
+          if npm view "$PACKAGE_NAME" versions --json --registry=https://registry.npmjs.org > /tmp/npm-versions.json 2>/dev/null; then
+            NPM_VERSIONS_JSON=$(cat /tmp/npm-versions.json)
+            echo "📦 Found versions on npm"
             
-            # Always sync package.json to npm version first (npm is source of truth)
-            # This ensures we're always bumping from the latest published version
-            if [ "$NPM_VERSION" != "$PKG_VERSION" ]; then
-              echo "🔄 Syncing package.json from $PKG_VERSION to $NPM_VERSION (npm is source of truth)"
-              node -e "
-                const fs = require('fs');
-                const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-                pkg.version = '$NPM_VERSION';
-                fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-              "
-              BASE_VERSION="$NPM_VERSION"
-              echo "✅ Synced package.json to npm version: $NPM_VERSION"
+            # Find the highest semantic version using npm's version comparison
+            # npm view can sort versions for us, but we'll do it manually to be safe
+            NPM_VERSION=$(node -e "
+              try {
+                const versions = JSON.parse(process.argv[1]);
+                if (!Array.isArray(versions) || versions.length === 0) {
+                  console.log('');
+                  process.exit(1);
+                }
+                // Parse and compare semantic versions
+                function parseVersion(v) {
+                  const parts = v.split('.').map(p => parseInt(p, 10) || 0);
+                  return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0, original: v };
+                }
+                function compareVersions(a, b) {
+                  if (a.major !== b.major) return b.major - a.major;
+                  if (a.minor !== b.minor) return b.minor - a.minor;
+                  return b.patch - a.patch;
+                }
+                const parsed = versions.map(parseVersion).sort(compareVersions);
+                console.log(parsed[0].original);
+              } catch (e) {
+                console.log('');
+                process.exit(1);
+              }
+            " "$NPM_VERSIONS_JSON")
+            
+            if [ -z "$NPM_VERSION" ] || [ "$NPM_VERSION" == "null" ]; then
+              echo "⚠️ Could not parse versions, trying fallback method..."
+              # Fallback: get dist-tags or use version command
+              NPM_VERSION=$(npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org 2>/dev/null || echo "")
+              if [ -z "$NPM_VERSION" ]; then
+                echo "ℹ️ Package not found on npm, using package.json version: $PKG_VERSION"
+                BASE_VERSION="$PKG_VERSION"
+              else
+                echo "📌 Using npm 'latest' tag version (fallback): $NPM_VERSION"
+                BASE_VERSION="$NPM_VERSION"
+              fi
             else
-              echo "✅ package.json already matches npm version"
-              BASE_VERSION="$NPM_VERSION"
+              echo "📌 Highest semantic version on npm: $NPM_VERSION"
+              
+              # Always sync package.json to highest npm version first
+              if [ "$NPM_VERSION" != "$PKG_VERSION" ]; then
+                echo "🔄 Syncing package.json from $PKG_VERSION to $NPM_VERSION"
+                node -e "
+                  const fs = require('fs');
+                  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+                  pkg.version = '$NPM_VERSION';
+                  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+                "
+                BASE_VERSION="$NPM_VERSION"
+                echo "✅ Synced package.json to npm highest version: $NPM_VERSION"
+              else
+                echo "✅ package.json already matches npm highest version"
+                BASE_VERSION="$NPM_VERSION"
+              fi
             fi
+            rm -f /tmp/npm-versions.json
           else
             echo "ℹ️ Package not found on npm (first publish?), using package.json version: $PKG_VERSION"
             BASE_VERSION="$PKG_VERSION"
