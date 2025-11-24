@@ -2,7 +2,7 @@ import { container } from "tsyringe";
 import ApiError from "@/utils/api-errors";
 import ApiService, { BASE_URL, AUTH_TOKEN } from "@/services/index";
 
-export default class BaseController {
+export class BaseController {
   protected readonly apiService: ApiService;
   protected readonly apiBasePath: string;
 

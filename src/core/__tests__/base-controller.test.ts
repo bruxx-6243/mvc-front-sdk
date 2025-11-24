@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { expect, test, describe, beforeEach, mock } from "bun:test";
-import BaseController from "@/core/base-controller";
+import { BaseController } from "@/core/base-controller";
 import ApiError from "@/utils/api-errors";
 import type { RequestBody } from "@/types";
 
