@@ -1,10 +1,6 @@
 name: Publish to npm
 
 on:
-  push:
-    branches:
-      - main
-      - master
   pull_request:
     types: [closed]
     branches:
@@ -36,7 +32,6 @@ jobs:
       id-token: write
     # Only run if PR was merged (not closed without merge)
     if: |
-      github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
       github.event_name == 'release' ||
       github.event_name == 'workflow_dispatch'
@@ -104,10 +99,8 @@ jobs:
           npm version ${{ github.event.inputs.version }} --no-git-tag-version
           echo "Updated package.json version to ${{ github.event.inputs.version }}"
 
-      - name: Bump version for PR merge or push to main
-        if: |
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-          (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+      - name: Bump version for PR merge to main
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         id: bump_version
         run: |
           # Get current version
@@ -137,9 +130,7 @@ jobs:
           echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION ($BUMP_TYPE)"
 
       - name: Commit version bump
-        if: |
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-          (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"

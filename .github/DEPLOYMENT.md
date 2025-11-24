@@ -40,12 +40,11 @@ This document explains how to deploy this package to npm using GitHub Actions.
 
 ## Publishing
 
-### Method 1: Automatic on PR Merge (Default)
+### Method 1: Automatic on PR Merge to Main (Default)
 
 **The workflow automatically publishes to npm when:**
 
 - A pull request is merged to `main` or `master` branch
-- Code is pushed directly to `main` or `master` branch
 
 **Automatic Version Bumping:**
 
@@ -107,10 +106,9 @@ Runs on every push and pull request:
 
 ### Publish Workflow (`.github/workflows/publish.yml`)
 
-Runs on:
+Runs automatically on:
 
 - **Pull requests merged to main/master** (automatic)
-- **Push to main/master branch** (automatic)
 - **GitHub Release creation** (with tag version)
 - **Manual workflow dispatch** (with optional version/bump type)
 
@@ -130,7 +128,7 @@ Steps:
 
 The workflow handles version updates automatically:
 
-- **On PR Merge/Push to Main**:
+- **On Push to Main**:
   - Automatically bumps version based on commit message
   - Commits version bump back to repository
   - Uses semantic versioning (patch/minor/major)
