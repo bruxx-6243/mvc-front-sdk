@@ -14,7 +14,7 @@ const mockFetch = mock(() =>
 );
 
 // Override global fetch for tests
-global.fetch = mockFetch as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 describe("ApiService", () => {
   const baseUrl = "https://api.example.com";
@@ -70,27 +70,42 @@ describe("ApiService", () => {
       const service = ApiService.create(baseUrl);
       await service.get("/users", { "X-Custom-Header": "value" });
 
-      const call = mockFetch.mock.calls[0];
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("X-Custom-Header")).toBe("value");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("X-Custom-Header")).toBe("value");
+      }
     });
 
     test("should include Authorization header when token is set", async () => {
       const service = ApiService.create(baseUrl, "bearer-token");
       await service.get("/users");
 
-      const call = mockFetch.mock.calls[0];
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("Authorization")).toBe("Bearer bearer-token");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Authorization")).toBe("Bearer bearer-token");
+      }
     });
 
     test("should not override existing Authorization header", async () => {
       const service = ApiService.create(baseUrl, "token");
       await service.get("/users", { Authorization: "Bearer custom-token" });
 
-      const call = mockFetch.mock.calls[0];
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("Authorization")).toBe("Bearer custom-token");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Authorization")).toBe("Bearer custom-token");
+      }
     });
   });
 
@@ -101,13 +116,20 @@ describe("ApiService", () => {
       await service.post("/users", body);
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe(`${baseUrl}/users`);
-      expect(call[1]?.method).toBe("POST");
-      expect(call[1]?.body).toBe(JSON.stringify(body));
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe(`${baseUrl}/users`);
+        expect(call[1]?.method).toBe("POST");
+        expect(call[1]?.body).toBe(JSON.stringify(body));
 
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("Content-Type")).toBe("application/json");
+        if (call[1]) {
+          const headers = call[1].headers as Headers;
+          expect(headers.get("Content-Type")).toBe("application/json");
+        }
+      }
     });
 
     test("should make a POST request with FormData", async () => {
@@ -117,18 +139,28 @@ describe("ApiService", () => {
 
       await service.post("/upload", formData);
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[1]?.body).toBe(formData);
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("Content-Type")).toBeNull();
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        expect(call[1].body).toBe(formData);
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Content-Type")).toBeNull();
+      }
     });
 
     test("should make a POST request without body", async () => {
       const service = ApiService.create(baseUrl);
       await service.post("/users");
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[1]?.body).toBeUndefined();
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[1]?.body).toBeUndefined();
+      }
     });
   });
 
@@ -138,10 +170,15 @@ describe("ApiService", () => {
       const body = { name: "Jane" };
       await service.put("/users/1", body);
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe(`${baseUrl}/users/1`);
-      expect(call[1]?.method).toBe("PUT");
-      expect(call[1]?.body).toBe(JSON.stringify(body));
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe(`${baseUrl}/users/1`);
+        expect(call[1]?.method).toBe("PUT");
+        expect(call[1]?.body).toBe(JSON.stringify(body));
+      }
     });
   });
 
@@ -151,10 +188,15 @@ describe("ApiService", () => {
       const body = { name: "Updated Name" };
       await service.patch("/users/1", body);
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe(`${baseUrl}/users/1`);
-      expect(call[1]?.method).toBe("PATCH");
-      expect(call[1]?.body).toBe(JSON.stringify(body));
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe(`${baseUrl}/users/1`);
+        expect(call[1]?.method).toBe("PATCH");
+        expect(call[1]?.body).toBe(JSON.stringify(body));
+      }
     });
   });
 
@@ -163,20 +205,24 @@ describe("ApiService", () => {
       const service = ApiService.create(baseUrl);
       await service.delete("/users/1");
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe(`${baseUrl}/users/1`);
-      expect(call[1]?.method).toBe("DELETE");
-      expect(call[1]?.body).toBeUndefined();
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe(`${baseUrl}/users/1`);
+        expect(call[1]?.method).toBe("DELETE");
+        expect(call[1]?.body).toBeUndefined();
+      }
     });
   });
 
   describe("Error handling", () => {
     test("should throw ApiError on non-ok response with message", async () => {
       mockFetch.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ message: "User not found" }),
-          { status: 404 }
-        )
+        new Response(JSON.stringify({ message: "User not found" }), {
+          status: 404,
+        })
       );
 
       const service = ApiService.create(baseUrl);
@@ -330,9 +376,13 @@ describe("ApiService", () => {
       const service = ApiService.create("https://api.example.com");
       await service.get("/users");
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe("https://api.example.com/users");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe("https://api.example.com/users");
+      }
     });
   });
 });
-

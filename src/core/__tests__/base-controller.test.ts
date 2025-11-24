@@ -1,10 +1,9 @@
 import "reflect-metadata";
 import { expect, test, describe, beforeEach, mock } from "bun:test";
 import BaseController from "@/core/base-controller";
-import ApiService from "@/services/index";
 import ApiError from "@/utils/api-errors";
+import type { RequestBody } from "@/types";
 
-// Mock fetch for ApiService
 const mockFetch = mock(() =>
   Promise.resolve(
     new Response(JSON.stringify({ data: "success" }), {
@@ -14,15 +13,14 @@ const mockFetch = mock(() =>
   )
 );
 
-global.fetch = mockFetch as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-// Create a test controller class
 class TestController extends BaseController {
   public async testGet(endpoint: string) {
     return this.apiService.get(endpoint);
   }
 
-  public async testPost(endpoint: string, body?: unknown) {
+  public async testPost(endpoint: string, body?: RequestBody) {
     return this.apiService.post(endpoint, body);
   }
 
@@ -323,19 +321,30 @@ describe("BaseController", () => {
       await controller.testPost("/users", body);
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe(`${baseUrl}/users`);
-      expect(call[1]?.method).toBe("POST");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      expect(calls.length).toBeGreaterThan(0);
+      const call = calls[0];
+      if (call) {
+        expect(call[0]).toBe(`${baseUrl}/users`);
+        expect(call[1]?.method).toBe("POST");
+      }
     });
 
     test("should pass token to apiService when provided", async () => {
       const controller = new TestController(baseUrl, "test-token");
       await controller.testGet("/users");
 
-      const call = mockFetch.mock.calls[0];
-      const headers = call[1]?.headers as Headers;
-      expect(headers.get("Authorization")).toBe("Bearer test-token");
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      expect(calls.length).toBeGreaterThan(0);
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Authorization")).toBe("Bearer test-token");
+      }
     });
   });
 });
-
