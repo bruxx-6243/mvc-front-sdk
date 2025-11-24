@@ -18,7 +18,7 @@ This document explains how to deploy this package to npm using GitHub Actions.
 4. Configure the token:
    - **Token name**: e.g., "GitHub Actions CI/CD" or "npm-publish-workflow"
    - **Description** (optional): "For automated npm publishing via GitHub Actions"
-   - **Bypass two-factor authentication (2FA)**: 
+   - **Bypass two-factor authentication (2FA)**:
      - Check this box if you want to bypass 2FA for automated workflows
      - ⚠️ Only enable if necessary for CI/CD automation
    - **Allowed IP ranges** (optional): Leave empty for GitHub Actions (IPs change)
@@ -146,9 +146,10 @@ The workflow handles version updates automatically:
 ### Authentication Failed
 
 - Verify `NPM_TOKEN` secret is set correctly in GitHub repository settings
-- Ensure token has **Publish** or **Granular Access Token** type with publish permissions
-- Check token hasn't expired (Publish tokens typically don't expire)
-- Verify the token has access to the package you're trying to publish
+- Ensure token is a **Granular Access Token** with **"Read and write"** or **"Publish"** permissions for your package
+- Verify the token has access to the specific package you're trying to publish
+- Check that the package name in npm matches your `package.json` name
+- If using 2FA bypass, ensure it's enabled on the token
 
 ### Version Already Exists
 
