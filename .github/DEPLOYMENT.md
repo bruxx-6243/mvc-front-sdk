@@ -10,12 +10,24 @@ This document explains how to deploy this package to npm using GitHub Actions.
 
 ## Setup
 
-### 1. Create npm Automation Token
+### 1. Create npm Granular Access Token
 
 1. Log in to [npmjs.com](https://www.npmjs.com)
 2. Go to **Access Tokens** → **Generate New Token**
-3. Select **Automation** token type (recommended for CI/CD)
-4. Copy the token (you won't see it again!)
+3. Select **Granular Access Token** (this is the current option available)
+4. Configure the token:
+   - **Token name**: e.g., "GitHub Actions CI/CD" or "npm-publish-workflow"
+   - **Description** (optional): "For automated npm publishing via GitHub Actions"
+   - **Bypass two-factor authentication (2FA)**: 
+     - Check this box if you want to bypass 2FA for automated workflows
+     - ⚠️ Only enable if necessary for CI/CD automation
+   - **Allowed IP ranges** (optional): Leave empty for GitHub Actions (IPs change)
+5. **Packages and scopes** section:
+   - Select your package name (e.g., `mvc-front-sdk`)
+   - Set permissions dropdown to **"Read and write"** or **"Publish"**
+   - This gives the token permission to publish your package
+6. Click **Generate Token**
+7. **Copy the token immediately** - you won't be able to see it again!
 
 ### 2. Configure GitHub Secret
 
@@ -133,9 +145,10 @@ The workflow handles version updates automatically:
 
 ### Authentication Failed
 
-- Verify `NPM_TOKEN` secret is set correctly
-- Ensure token has **Automation** type (not **Publish**)
-- Check token hasn't expired
+- Verify `NPM_TOKEN` secret is set correctly in GitHub repository settings
+- Ensure token has **Publish** or **Granular Access Token** type with publish permissions
+- Check token hasn't expired (Publish tokens typically don't expire)
+- Verify the token has access to the package you're trying to publish
 
 ### Version Already Exists
 
