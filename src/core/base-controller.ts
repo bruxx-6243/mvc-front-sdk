@@ -7,19 +7,14 @@ export default class BaseController {
   protected readonly apiBasePath: string;
 
   constructor(baseUrl: string, token?: string) {
-    // Create a child container for this controller instance
     const scope = container.createChildContainer();
-    
-    // Register baseUrl in the child container
+
     scope.registerInstance(BASE_URL, baseUrl);
-    
-    // Register token if provided
+
     if (token) {
       scope.registerInstance(AUTH_TOKEN, token);
     }
-    
-    // Resolve ApiService from the child container
-    // It will use the baseUrl and token from this scope
+
     this.apiService = scope.resolve(ApiService);
     this.apiBasePath = baseUrl;
 
