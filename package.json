@@ -41,7 +41,9 @@
     "build:all": "bun run build && bun run build:types",
     "prepublishOnly": "bun run build:all",
     "prepack": "bun run build:all",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --preload ./test-setup.ts",
+    "test:watch": "bun test --watch --preload ./test-setup.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
