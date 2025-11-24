@@ -107,18 +107,20 @@ jobs:
 
           # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version in package.json: $CURRENT_VERSION"
+          echo "📦 Current version in package.json: $CURRENT_VERSION"
 
           # Try to get latest published version from npm
+          # Use registry-url to ensure we're checking the correct registry
           NPM_VERSION=""
-          if npm view "$PACKAGE_NAME" version > /dev/null 2>&1; then
-            NPM_VERSION=$(npm view "$PACKAGE_NAME" version)
-            echo "Latest version on npm: $NPM_VERSION"
+          echo "🔍 Checking npm registry for latest published version..."
+          if npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org > /dev/null 2>&1; then
+            NPM_VERSION=$(npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org)
+            echo "📌 Latest version on npm: $NPM_VERSION"
             
             # If npm version exists and is different, sync package.json to npm version first
             # This handles the case where a previous publish succeeded but the commit didn't get pushed back
             if [ "$NPM_VERSION" != "$CURRENT_VERSION" ]; then
-              echo "Syncing package.json version from $CURRENT_VERSION to $NPM_VERSION (npm version is newer)"
+              echo "🔄 Syncing package.json version from $CURRENT_VERSION to $NPM_VERSION (npm version is newer)"
               # Use node to directly update package.json
               node -e "
                 const fs = require('fs');
@@ -127,11 +129,15 @@ jobs:
                 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
               "
               CURRENT_VERSION=$NPM_VERSION
-              echo "Updated package.json to version $NPM_VERSION"
+              echo "✅ Updated package.json to version $NPM_VERSION"
+            else
+              echo "✅ package.json version matches npm version"
             fi
           else
-            echo "Package not found on npm, using package.json version"
+            echo "ℹ️ Package not found on npm (first publish?), using package.json version"
           fi
+
+          echo "📋 Starting version bump from: $CURRENT_VERSION"
 
           # Determine bump type
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.bump_type }}" ]; then
@@ -171,26 +177,40 @@ jobs:
 
       - name: Check if version already exists on npm
         id: check_version
+        continue-on-error: true
         run: |
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          echo "Checking if $PACKAGE_NAME@$PACKAGE_VERSION already exists on npm..."
+          echo "🔍 Checking if $PACKAGE_NAME@$PACKAGE_VERSION already exists on npm..."
 
-          # Check if version exists (this will fail if version doesn't exist, which is what we want)
-          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version > /dev/null 2>&1; then
-            echo "Version $PACKAGE_VERSION already exists on npm!"
+          # Check if version exists (use explicit registry URL)
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version --registry=https://registry.npmjs.org > /dev/null 2>&1; then
+            echo "⚠️ Version $PACKAGE_VERSION already exists on npm!"
             echo "exists=true" >> $GITHUB_OUTPUT
-            exit 1
+            echo "⏭️ Skipping publish - version already exists"
           else
-            echo "Version $PACKAGE_VERSION is available to publish"
+            echo "✅ Version $PACKAGE_VERSION is available to publish"
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Publish to npm
         if: steps.check_version.outputs.exists != 'true'
-        run: npm publish --access public
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "🚀 Publishing $PACKAGE_NAME@$PACKAGE_VERSION to npm..."
+          npm publish --access public
+          echo "✅ Successfully published $PACKAGE_NAME@$PACKAGE_VERSION"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publish (version exists)
+        if: steps.check_version.outputs.exists == 'true'
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "⏭️ Skipping publish: $PACKAGE_NAME@$PACKAGE_VERSION already exists on npm"
+          echo "💡 This is expected if the version was already published in a previous run"
 
       - name: Get package name and version
         id: package_info
