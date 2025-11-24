@@ -34,7 +34,7 @@ pnpm add mvc-front-sdk
 ### Basic Usage (Without Token)
 
 ```typescript
-import BaseController from "mvc-front-sdk";
+import { BaseController } from "mvc-front-sdk";
 
 export default class UserController extends BaseController {
   constructor() {
@@ -55,7 +55,7 @@ export default class UserController extends BaseController {
 ### With Authentication Token
 
 ```typescript
-import BaseController from "mvc-front-sdk";
+import { BaseController } from "mvc-front-sdk";
 import { env } from "@/env";
 
 export default class AuthenticatedController extends BaseController {
@@ -205,7 +205,7 @@ this.apiService.setToken(newToken);
 ### Complete Controller Example
 
 ```typescript
-import BaseController from "mvc-front-sdk";
+import { BaseController } from "mvc-front-sdk";
 
 interface User {
   id: string;
