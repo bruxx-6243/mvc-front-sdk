@@ -14,6 +14,10 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
+    // Decorators support (required for tsyringe)
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
     // Build configuration
     "rootDir": "./src",
     "outDir": "./dist",
