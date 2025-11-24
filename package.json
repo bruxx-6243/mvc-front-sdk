@@ -1,16 +1,53 @@
 {
   "name": "mvc-front-sdk",
-  "module": "src/index.ts",
+  "version": "0.1.0",
+  "description": "MVC Front SDK - A modern frontend MVC framework",
   "type": "module",
-  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mvc",
+    "frontend",
+    "sdk",
+    "framework"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bruxx-6243/mvc-front-sdk.git"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "build": "bun build src/index.ts --outdir dist"
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --minify",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
+    "build:all": "bun run build && bun run build:types",
+    "prepublishOnly": "bun run build:all",
+    "prepack": "bun run build:all",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "npm@>=9.0.0"
 }
