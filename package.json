@@ -1,7 +1,7 @@
 {
   "name": "mvc-front-sdk",
   "version": "0.1.0",
-  "description": "MVC Front SDK - A modern frontend MVC framework",
+  "description": "MVC Front SDK - A modern frontend MVC SDK",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -33,6 +33,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "start": "bun run dist/index.js",
     "build": "bun build src/index.ts --outdir dist --target node --format esm --minify",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
     "build:all": "bun run build && bun run build:types",
@@ -49,5 +50,8 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "packageManager": "npm@>=9.0.0"
+  "packageManager": "npm@>=9.0.0",
+  "dependencies": {
+    "tsyringe": "^4.10.0"
+  }
 }
