@@ -1,5 +1,6 @@
 src/
-dist/
+dist/**/*.example.*
+dist/.tsbuildinfo
 node_modules/
 bun.lock
 tsconfig.json

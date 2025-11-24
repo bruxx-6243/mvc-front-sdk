@@ -36,7 +36,7 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run dist/index.js",
-    "build": "bun build src/index.ts --outdir dist --target node --format esm --minify",
+    "build": "bun build src/index.ts --outdir dist --target node --format esm --minify --external reflect-metadata --external tsyringe",
     "build:types": "tsc --project tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "build:all": "bun run build && bun run build:types",
     "prepublishOnly": "bun run build:all",
