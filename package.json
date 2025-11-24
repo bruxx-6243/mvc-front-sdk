@@ -37,7 +37,7 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run dist/index.js",
     "build": "bun build src/index.ts --outdir dist --target node --format esm --minify",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist --noEmit false",
+    "build:types": "tsc --project tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "build:all": "bun run build && bun run build:types",
     "prepublishOnly": "bun run build:all",
     "prepack": "bun run build:all",
@@ -49,7 +49,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "lcov-parse": "^1.0.0"
+    "lcov-parse": "^1.0.0",
+    "tsc-alias": "^1.8.16"
   },
   "peerDependencies": {
     "typescript": "^5"
