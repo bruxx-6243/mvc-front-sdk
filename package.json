@@ -41,10 +41,15 @@
     "build:all": "bun run build && bun run build:types",
     "prepublishOnly": "bun run build:all",
     "prepack": "bun run build:all",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --preload ./test-setup.ts",
+    "test:watch": "bun test --watch --preload ./test-setup.ts",
+    "test:coverage": "bun test --coverage --preload ./test-setup.ts",
+    "test:coverage:html": "bun test --coverage --preload ./test-setup.ts && bun run scripts/generate-coverage-html.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "lcov-parse": "^1.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"
