@@ -300,6 +300,145 @@ export default async function UsersPage() {
 }
 ```
 
+### Using with TanStack Query
+
+Integrate the MVC SDK controllers with TanStack Query for powerful data fetching, caching, and state management:
+
+```typescript
+// hooks/useUsers.ts
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import UserController from "@/controllers/UserController";
+
+const userController = new UserController();
+
+// Query hook for fetching users
+export function useUsers(filters?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ["users", filters],
+    queryFn: () => userController.getAllUsers(filters),
+  });
+}
+
+// Query hook for fetching a single user
+export function useUser(id: string) {
+  return useQuery({
+    queryKey: ["user", id],
+    queryFn: () => userController.getUserById(id),
+    enabled: !!id, // Only fetch if id is provided
+  });
+}
+
+// Mutation hook for creating a user
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userData: CreateUserDto) =>
+      userController.createUser(userData),
+    onSuccess: () => {
+      // Invalidate and refetch users list
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+// Mutation hook for updating a user
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<User> }) =>
+      userController.updateUser(id, data),
+    onSuccess: (_, variables) => {
+      // Invalidate specific user and users list
+      queryClient.invalidateQueries({ queryKey: ["user", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+// Mutation hook for deleting a user
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => userController.deleteUser(id),
+    onSuccess: () => {
+      // Invalidate users list
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+```
+
+```typescript
+// components/UsersList.tsx
+import { useUsers, useDeleteUser } from "@/hooks/useUsers";
+
+export function UsersList() {
+  const { data: users, isLoading, error } = useUsers({ page: 1, limit: 10 });
+  const deleteUser = useDeleteUser();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h1>Users</h1>
+      {users?.map((user) => (
+        <div key={user.id}>
+          <span>{user.name}</span>
+          <button onClick={() => deleteUser.mutate(user.id)}>Delete</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+```typescript
+// components/CreateUserForm.tsx
+import { useCreateUser } from "@/hooks/useUsers";
+import { useState } from "react";
+
+export function CreateUserForm() {
+  const createUser = useCreateUser();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createUser.mutate(
+      { name, email },
+      {
+        onSuccess: () => {
+          setName("");
+          setEmail("");
+        },
+      }
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Name"
+      />
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email"
+      />
+      <button type="submit" disabled={createUser.isPending}>
+        {createUser.isPending ? "Creating..." : "Create User"}
+      </button>
+    </form>
+  );
+}
+```
+
 ### Custom Headers
 
 ```typescript
