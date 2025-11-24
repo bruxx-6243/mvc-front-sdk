@@ -1,0 +1,7 @@
+src/
+dist/
+node_modules/
+bun.lock
+tsconfig.json
+*.log
+.env

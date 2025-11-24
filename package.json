@@ -14,7 +14,9 @@
     },
     "./package.json": "./package.json"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "reflect-metadata"
+  ],
   "files": [
     "dist",
     "README.md",
@@ -52,6 +54,7 @@
   },
   "packageManager": "npm@>=9.0.0",
   "dependencies": {
+    "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0"
   }
 }
