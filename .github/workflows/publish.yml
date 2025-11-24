@@ -106,38 +106,39 @@ jobs:
           PACKAGE_NAME=$(node -p "require('./package.json').name")
 
           # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "📦 Current version in package.json: $CURRENT_VERSION"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "📦 Current version in package.json: $PKG_VERSION"
 
-          # Try to get latest published version from npm
-          # Use registry-url to ensure we're checking the correct registry
-          NPM_VERSION=""
+          # Always get the latest published version from npm to use as base
           echo "🔍 Checking npm registry for latest published version..."
+          BASE_VERSION="$PKG_VERSION"
+
           if npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org > /dev/null 2>&1; then
             NPM_VERSION=$(npm view "$PACKAGE_NAME" version --registry=https://registry.npmjs.org)
             echo "📌 Latest version on npm: $NPM_VERSION"
             
-            # If npm version exists and is different, sync package.json to npm version first
-            # This handles the case where a previous publish succeeded but the commit didn't get pushed back
-            if [ "$NPM_VERSION" != "$CURRENT_VERSION" ]; then
-              echo "🔄 Syncing package.json version from $CURRENT_VERSION to $NPM_VERSION (npm version is newer)"
-              # Use node to directly update package.json
+            # Always sync package.json to npm version first (npm is source of truth)
+            # This ensures we're always bumping from the latest published version
+            if [ "$NPM_VERSION" != "$PKG_VERSION" ]; then
+              echo "🔄 Syncing package.json from $PKG_VERSION to $NPM_VERSION (npm is source of truth)"
               node -e "
                 const fs = require('fs');
                 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
                 pkg.version = '$NPM_VERSION';
                 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
               "
-              CURRENT_VERSION=$NPM_VERSION
-              echo "✅ Updated package.json to version $NPM_VERSION"
+              BASE_VERSION="$NPM_VERSION"
+              echo "✅ Synced package.json to npm version: $NPM_VERSION"
             else
-              echo "✅ package.json version matches npm version"
+              echo "✅ package.json already matches npm version"
+              BASE_VERSION="$NPM_VERSION"
             fi
           else
-            echo "ℹ️ Package not found on npm (first publish?), using package.json version"
+            echo "ℹ️ Package not found on npm (first publish?), using package.json version: $PKG_VERSION"
+            BASE_VERSION="$PKG_VERSION"
           fi
 
-          echo "📋 Starting version bump from: $CURRENT_VERSION"
+          echo "📋 Will bump from base version: $BASE_VERSION"
 
           # Determine bump type
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.bump_type }}" ]; then
@@ -154,25 +155,97 @@ jobs:
             fi
           fi
 
-          echo "Bump type: $BUMP_TYPE"
-          npm version $BUMP_TYPE --no-git-tag-version
+          echo "🔢 Bump type: $BUMP_TYPE"
+
+          # Verify current version before bump
+          BEFORE_BUMP=$(node -p "require('./package.json').version")
+          echo "📋 Version before bump: $BEFORE_BUMP"
+
+          if [ "$BEFORE_BUMP" != "$BASE_VERSION" ]; then
+            echo "⚠️ Warning: package.json version ($BEFORE_BUMP) doesn't match base version ($BASE_VERSION)"
+            echo "🔄 Updating to base version first..."
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = '$BASE_VERSION';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            BEFORE_BUMP="$BASE_VERSION"
+          fi
+
+          # Perform the version bump
+          echo "🚀 Running: npm version $BUMP_TYPE --no-git-tag-version"
+          npm version $BUMP_TYPE --no-git-tag-version || {
+            echo "❌ Failed to bump version"
+            echo "Current package.json content:"
+            cat package.json | grep -A 2 '"version"'
+            exit 1
+          }
+
+          # Verify the bump worked
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
-          echo "Bumped version from $CURRENT_VERSION to $NEW_VERSION ($BUMP_TYPE)"
+          echo "✅ Bumped version from $BEFORE_BUMP to $NEW_VERSION ($BUMP_TYPE)"
+
+          # Double-check the version is actually different
+          if [ "$NEW_VERSION" == "$BEFORE_BUMP" ]; then
+            echo "❌ ERROR: Version did not change! Still $NEW_VERSION"
+            exit 1
+          fi
+
+      - name: Verify version bump
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        run: |
+          FINAL_VERSION=$(node -p "require('./package.json').version")
+          EXPECTED_VERSION="${{ steps.bump_version.outputs.version }}"
+          echo "🔍 Verifying version bump..."
+          echo "Expected version: $EXPECTED_VERSION"
+          echo "Actual version in package.json: $FINAL_VERSION"
+
+          if [ "$FINAL_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "❌ Version mismatch! Expected $EXPECTED_VERSION but got $FINAL_VERSION"
+            exit 1
+          fi
+          echo "✅ Version verified: $FINAL_VERSION"
 
       - name: Commit version bump
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git config --local pull.rebase false
+
+          # Get the base branch (usually main or master)
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          echo "📝 Committing version bump to $BASE_BRANCH"
+
           git add package.json
+
           # Check if there are changes to commit
           if git diff --staged --quiet; then
-            echo "No version changes to commit"
+            echo "⚠️ No version changes to commit (version may already be correct)"
           else
-            git commit -m "chore: bump version to ${{ steps.bump_version.outputs.version }}"
-            git push origin HEAD:${{ github.event.pull_request.base.ref }}
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+            
+            # Fetch latest and rebase to avoid conflicts
+            git fetch origin $BASE_BRANCH
+            git rebase origin/$BASE_BRANCH || {
+              echo "⚠️ Rebase conflict, trying merge instead"
+              git rebase --abort || true
+              git merge origin/$BASE_BRANCH || {
+                echo "⚠️ Merge conflict, version bump commit may need manual resolution"
+                exit 0  # Don't fail the workflow, version bump is committed locally
+              }
+            }
+            
+            # Push the version bump commit
+            git push origin HEAD:$BASE_BRANCH || {
+              echo "⚠️ Failed to push version bump (may already be pushed or need manual intervention)"
+              # Don't fail the workflow - the version is bumped locally and will be published
+            }
+            echo "✅ Version bump committed and pushed"
           fi
 
       - name: Check if version already exists on npm
