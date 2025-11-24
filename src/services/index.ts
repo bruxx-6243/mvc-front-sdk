@@ -2,9 +2,12 @@ import { injectable, inject } from "tsyringe";
 
 import ApiError from "@/utils/api-errors";
 
-type HeadersInit = Record<string, string> | [string, string][] | Headers;
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-type RequestBody = Record<string, unknown> | FormData;
+import type {
+  HeadersInit,
+  HttpMethod,
+  RequestBody,
+  ResponseBody,
+} from "@/types";
 
 export const BASE_URL = "ApiService:baseUrl";
 export const AUTH_TOKEN = "ApiService:token";
@@ -58,7 +61,7 @@ export default class ApiService {
     body?: RequestBody,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     const requestHeaders = this.createHeaders(headers);
     const isJsonBody = body && !(body instanceof FormData);
 
@@ -94,7 +97,7 @@ export default class ApiService {
         throw new ApiError(errorMessage, response.status, errorBody, response);
       }
 
-      return response.json() as Promise<T>;
+      return response.json() as Promise<ResponseBody<T>>;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(
@@ -110,7 +113,7 @@ export default class ApiService {
     url: string,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     return this.request("GET", url, undefined, headers, customErrorMessage);
   }
 
@@ -119,7 +122,7 @@ export default class ApiService {
     body?: RequestBody,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     return this.request("POST", url, body, headers, customErrorMessage);
   }
 
@@ -128,7 +131,7 @@ export default class ApiService {
     body?: RequestBody,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     return this.request("PUT", url, body, headers, customErrorMessage);
   }
 
@@ -137,7 +140,7 @@ export default class ApiService {
     body?: RequestBody,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     return this.request("PATCH", url, body, headers, customErrorMessage);
   }
 
@@ -145,7 +148,7 @@ export default class ApiService {
     url: string,
     headers: HeadersInit = {},
     customErrorMessage?: string
-  ): Promise<T> {
+  ): Promise<ResponseBody<T>> {
     return this.request("DELETE", url, undefined, headers, customErrorMessage);
   }
 }
