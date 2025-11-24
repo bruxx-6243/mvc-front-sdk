@@ -26,11 +26,8 @@ export interface PaginatedResponse<T> {
  * @template CreateDto - Type for creating entities (defaults to T without 'id')
  * @template UpdateDto - Type for updating entities (defaults to Partial<T>)
  * @template ID - The identifier type (defaults to string | number)
- * @template CreateResponse - Response type for create operation (defaults to T, can be any type/Record)
  * @template AllResponse - Response type for getAll operation (defaults to T[], can be any type/Record)
- * @template ShowResponse - Response type for getById operation (defaults to T, can be any type/Record)
- * @template UpdateResponse - Response type for update operation (defaults to T, can be any type/Record)
- * @template DeleteResponse - Response type for delete operation (defaults to void, can be any type/Record)
+ * @template Response - Response type for create/show/update operations (defaults to T, can be any type/Record)
  *
  * @example
  * ```typescript
@@ -39,38 +36,40 @@ export interface PaginatedResponse<T> {
  *   name: string;
  * }
  *
- * // Example 1: Simple array response
- * interface UserCRUD1 extends CRUD<User> {
- *   // all() returns Promise<User[]>
+ * // Example 1: Using all defaults - just provide the entity type
+ * class UserController implements CRUD<User> {
+ *   // Uses defaults:
+ *   // - CreateDto = Omit<User, "id">
+ *   // - UpdateDto = Partial<User>
+ *   // - ID = string | number
+ *   // - AllResponse = User[]
+ *   // - Response = User
+ *
+ *   create(data: Omit<User, "id">): Promise<User> { ... }
+ *   all(): Promise<User[]> { ... }
+ *   show(id: string | number): Promise<User> { ... }
+ *   update(id: string | number, data: Partial<User>): Promise<User> { ... }
+ *   delete(id: string | number): Promise<void> { ... }
  * }
  *
- * // Example 2: Paginated response with custom structure
+ * // Example 2: Custom paginated response
  * interface PaginatedUsers {
  *   data: User[];
- *   pagination: { limit: number; page: number; page_size: number; total: number };
+ *   pagination: { limit: number; page: number; page_size: number };
  * }
- * interface UserCRUD2 extends CRUD<User, any, any, string, User, PaginatedUsers> {
+ * class PaginatedController implements CRUD<User, any, any, string, PaginatedUsers> {
  *   // all() returns Promise<PaginatedUsers>
+ *   // create/show/update return Promise<User> (default Response)
  * }
  *
- * // Example 3: Success message response
+ * // Example 3: Custom response types
  * interface SuccessResponse {
  *   message: string;
  *   success: boolean;
  * }
- * interface UserCRUD3 extends CRUD<User, any, any, string, SuccessResponse, User[], User, SuccessResponse> {
- *   // create() returns Promise<SuccessResponse>
- *   // update() returns Promise<SuccessResponse>
- * }
- *
- * // Example 4: Any backend response structure
- * interface BackendResponse {
- *   result: User[];
- *   meta: Record<string, unknown>;
- *   status: string;
- * }
- * interface UserCRUD4 extends CRUD<User, any, any, string, any, BackendResponse> {
- *   // all() returns Promise<BackendResponse>
+ * class SuccessController implements CRUD<User, any, any, string, User[], SuccessResponse> {
+ *   // all() returns Promise<User[]>
+ *   // create/show/update return Promise<SuccessResponse>
  * }
  * ```
  */
@@ -79,18 +78,15 @@ export interface CRUD<
   CreateDto = Omit<T, "id">,
   UpdateDto = Partial<T>,
   ID = string | number,
-  CreateResponse = T,
   AllResponse = T[],
-  ShowResponse = T,
-  UpdateResponse = T,
-  DeleteResponse = void
+  Response = T
 > {
   /**
    * Create a new entity
    * @param data - The data to create the entity with
    * @returns Promise resolving to the create response (any structure - entity, success message, wrapped response, etc.)
    */
-  create(data: CreateDto): Promise<CreateResponse>;
+  create(data: CreateDto): Promise<Response>;
 
   /**
    * Get all entities, optionally with filters
@@ -104,7 +100,7 @@ export interface CRUD<
    * @param id - The identifier of the entity
    * @returns Promise resolving to the response (any structure - entity, wrapped response, etc.)
    */
-  show(id: ID): Promise<ShowResponse>;
+  show(id: ID): Promise<Response>;
 
   /**
    * Update an entity by ID
@@ -112,12 +108,12 @@ export interface CRUD<
    * @param data - The data to update the entity with
    * @returns Promise resolving to the update response (any structure - entity, success message, wrapped response, etc.)
    */
-  update(id: ID, data: UpdateDto): Promise<UpdateResponse>;
+  update(id: ID, data: UpdateDto): Promise<Response>;
 
   /**
    * Delete an entity by ID
    * @param id - The identifier of the entity to delete
-   * @returns Promise resolving to the delete response (any structure - void, success message, wrapped response, etc.)
+   * @returns Promise resolving when deletion is complete
    */
-  delete(id: ID): Promise<DeleteResponse>;
+  delete(id: ID): Promise<void>;
 }

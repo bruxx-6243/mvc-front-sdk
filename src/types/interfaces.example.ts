@@ -22,22 +22,27 @@ interface UpdateUserDto extends Record<string, unknown> {
 }
 
 /**
- * Example 1: Simple implementation where:
+ * Example 1: Simple implementation using defaults
  * - all() returns User[]
  * - create() returns User
  * - show() returns User
  * - update() returns User
  * - delete() returns void
+ *
+ * Note: You can use `implements CRUD<User>` and it will use all defaults:
+ * - CreateDto = Omit<User, "id">
+ * - UpdateDto = Partial<User>
+ * - ID = string | number
+ * - AllResponse = User[]
+ * - Response = User
  */
-export class UserController
-  extends BaseController
-  implements CRUD<User, CreateUserDto, UpdateUserDto>
-{
+export class UserController extends BaseController implements CRUD<User> {
   constructor(baseUrl: string, token?: string) {
     super(baseUrl, token);
   }
 
-  async create(data: CreateUserDto): Promise<User> {
+  // Using Omit<User, "id"> as CreateDto (default)
+  async create(data: Omit<User, "id">): Promise<User> {
     try {
       const url = this.getApiUrl("/users");
       const user = await this.apiService.post<User>(url, data);
@@ -58,7 +63,8 @@ export class UserController
     }
   }
 
-  async show(id: string): Promise<User> {
+  // Using string | number as ID (default)
+  async show(id: string | number): Promise<User> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
       const user = await this.apiService.get<User>(url);
@@ -68,7 +74,8 @@ export class UserController
     }
   }
 
-  async update(id: string, data: UpdateUserDto): Promise<User> {
+  // Using Partial<User> as UpdateDto (default)
+  async update(id: string | number, data: Partial<User>): Promise<User> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
       const user = await this.apiService.put<User>(url, data);
@@ -111,14 +118,7 @@ interface PaginatedUsersResponse {
 export class PaginatedUserController
   extends BaseController
   implements
-    CRUD<
-      User,
-      CreateUserDto,
-      UpdateUserDto,
-      string,
-      User,
-      PaginatedUsersResponse
-    >
+    CRUD<User, CreateUserDto, UpdateUserDto, string, PaginatedUsersResponse>
 {
   constructor(baseUrl: string, token?: string) {
     super(baseUrl, token);
@@ -187,27 +187,17 @@ interface SuccessResponse {
 }
 
 /**
- * Example 3: Implementation where create/update return success messages
+ * Example 3: Implementation where create/show/update return success messages
  * - create() returns SuccessResponse
  * - update() returns SuccessResponse
+ * - show() returns SuccessResponse
  * - all() returns User[]
- * - show() returns User
- * - delete() returns SuccessResponse
+ * - delete() returns void
  */
 export class SuccessMessageUserController
   extends BaseController
   implements
-    CRUD<
-      User,
-      CreateUserDto,
-      UpdateUserDto,
-      string,
-      SuccessResponse,
-      User[],
-      User,
-      SuccessResponse,
-      SuccessResponse
-    >
+    CRUD<User, CreateUserDto, UpdateUserDto, string, User[], SuccessResponse>
 {
   constructor(baseUrl: string, token?: string) {
     super(baseUrl, token);
@@ -234,11 +224,11 @@ export class SuccessMessageUserController
     }
   }
 
-  async show(id: string): Promise<User> {
+  async show(id: string): Promise<SuccessResponse> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
-      const user = await this.apiService.get<User>(url);
-      return user;
+      const response = await this.apiService.get<SuccessResponse>(url);
+      return response;
     } catch (error) {
       this.handleError(error);
     }
@@ -254,11 +244,10 @@ export class SuccessMessageUserController
     }
   }
 
-  async delete(id: string): Promise<SuccessResponse> {
+  async delete(id: string): Promise<void> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
-      const response = await this.apiService.delete<SuccessResponse>(url);
-      return response;
+      await this.apiService.delete(url);
     } catch (error) {
       this.handleError(error);
     }
@@ -288,8 +277,8 @@ interface CustomCreateResponse {
 /**
  * Example 4: Implementation with completely custom backend structure
  * - all() returns CustomBackendResponse
- * - create() returns CustomCreateResponse
- * - Other methods use default types
+ * - create/show/update return CustomCreateResponse
+ * - delete() returns void
  */
 export class CustomBackendUserController
   extends BaseController
@@ -299,8 +288,8 @@ export class CustomBackendUserController
       CreateUserDto,
       UpdateUserDto,
       string,
-      CustomCreateResponse,
-      CustomBackendResponse
+      CustomBackendResponse,
+      CustomCreateResponse
     >
 {
   constructor(baseUrl: string, token?: string) {
@@ -331,21 +320,24 @@ export class CustomBackendUserController
     }
   }
 
-  async show(id: string): Promise<User> {
+  async show(id: string): Promise<CustomCreateResponse> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
-      const user = await this.apiService.get<User>(url);
-      return user;
+      const response = await this.apiService.get<CustomCreateResponse>(url);
+      return response;
     } catch (error) {
       this.handleError(error);
     }
   }
 
-  async update(id: string, data: UpdateUserDto): Promise<User> {
+  async update(id: string, data: UpdateUserDto): Promise<CustomCreateResponse> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
-      const user = await this.apiService.put<User>(url, data);
-      return user;
+      const response = await this.apiService.put<CustomCreateResponse>(
+        url,
+        data
+      );
+      return response;
     } catch (error) {
       this.handleError(error);
     }
@@ -377,9 +369,6 @@ export class FlexibleUserController
       CreateUserDto,
       UpdateUserDto,
       string,
-      Record<string, unknown>,
-      Record<string, unknown>,
-      Record<string, unknown>,
       Record<string, unknown>,
       Record<string, unknown>
     >
@@ -440,13 +429,10 @@ export class FlexibleUserController
     }
   }
 
-  async delete(id: string): Promise<Record<string, unknown>> {
+  async delete(id: string): Promise<void> {
     try {
       const url = this.getApiUrl(`/users/${id}`);
-      const response = await this.apiService.delete<Record<string, unknown>>(
-        url
-      );
-      return response;
+      await this.apiService.delete(url);
     } catch (error) {
       this.handleError(error);
     }
