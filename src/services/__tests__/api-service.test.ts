@@ -33,6 +33,16 @@ describe("ApiService", () => {
       const service = ApiService.create(baseUrl, "test-token");
       expect(service).toBeInstanceOf(ApiService);
     });
+
+    test("should create an ApiService instance with token and default headers", () => {
+      const defaultHeaders = { "X-Custom-Header": "value" };
+      const service = ApiService.create(
+        baseUrl,
+        "test-token",
+        defaultHeaders
+      );
+      expect(service).toBeInstanceOf(ApiService);
+    });
   });
 
   describe("setToken", () => {
@@ -105,6 +115,89 @@ describe("ApiService", () => {
       if (call?.[1]) {
         const headers = call[1].headers as Headers;
         expect(headers.get("Authorization")).toBe("Bearer custom-token");
+      }
+    });
+
+    test("should include default headers in GET request", async () => {
+      const defaultHeaders = {
+        "X-Custom-Header": "default-value",
+        "X-API-Version": "v1",
+      };
+      const service = ApiService.create(baseUrl, undefined, defaultHeaders);
+      await service.get("/users");
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("X-Custom-Header")).toBe("default-value");
+        expect(headers.get("X-API-Version")).toBe("v1");
+      }
+    });
+
+    test("should merge default headers with custom headers (custom takes precedence)", async () => {
+      const defaultHeaders = {
+        "X-Custom-Header": "default-value",
+        "X-API-Version": "v1",
+      };
+      const service = ApiService.create(baseUrl, undefined, defaultHeaders);
+      await service.get("/users", {
+        "X-Custom-Header": "custom-value",
+        "X-Request-ID": "123",
+      });
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        // Custom header should override default
+        expect(headers.get("X-Custom-Header")).toBe("custom-value");
+        // Default header should still be present
+        expect(headers.get("X-API-Version")).toBe("v1");
+        // New custom header should be present
+        expect(headers.get("X-Request-ID")).toBe("123");
+      }
+    });
+
+    test("should include both token and default headers", async () => {
+      const defaultHeaders = {
+        "X-API-Version": "v1",
+        "X-Client-ID": "client-123",
+      };
+      const service = ApiService.create(baseUrl, "test-token", defaultHeaders);
+      await service.get("/users");
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Authorization")).toBe("Bearer test-token");
+        expect(headers.get("X-API-Version")).toBe("v1");
+        expect(headers.get("X-Client-ID")).toBe("client-123");
+      }
+    });
+
+    test("should prioritize token over default Authorization header", async () => {
+      const defaultHeaders = {
+        Authorization: "Bearer default-token",
+      };
+      const service = ApiService.create(baseUrl, "token-from-param", defaultHeaders);
+      await service.get("/users");
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        // Token parameter should take precedence
+        expect(headers.get("Authorization")).toBe("Bearer token-from-param");
       }
     });
   });

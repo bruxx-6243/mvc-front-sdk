@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 import ApiError from "@/utils/api-errors";
 import ApiService, { BASE_URL, AUTH_TOKEN } from "@/services/index";
+import type { HeadersInit } from "@/types";
 
 /**
  * Base controller class that provides API service integration and helper methods
@@ -48,6 +49,8 @@ export class BaseController {
    * @param baseUrl - The base URL for API requests (e.g., "https://api.example.com")
    * @param token - Optional authentication token that will be included in all requests
    *                as `Authorization: Bearer <token>`
+   * @param defaultHeaders - Optional default headers that will be included in all requests.
+   *                         These headers can be overridden by headers passed to individual API methods.
    *
    * @example
    * ```typescript
@@ -56,18 +59,28 @@ export class BaseController {
    *
    * // With authentication
    * const controller = new BaseController("https://api.example.com", "your-token");
+   *
+   * // With default headers
+   * const controller = new BaseController(
+   *   "https://api.example.com",
+   *   "your-token",
+   *   { "X-Custom-Header": "value", "X-API-Version": "v1" }
+   * );
    * ```
    */
-  constructor(baseUrl: string, token?: string) {
-    const scope = container.createChildContainer();
-
-    scope.registerInstance(BASE_URL, baseUrl);
-
-    if (token) {
-      scope.registerInstance(AUTH_TOKEN, token);
+  constructor(baseUrl: string, token?: string, defaultHeaders?: HeadersInit) {
+    // Use factory method when headers are provided for simplicity
+    if (defaultHeaders) {
+      this.apiService = ApiService.create(baseUrl, token, defaultHeaders);
+    } else {
+      const scope = container.createChildContainer();
+      scope.registerInstance(BASE_URL, baseUrl);
+      if (token) {
+        scope.registerInstance(AUTH_TOKEN, token);
+      }
+      this.apiService = scope.resolve(ApiService);
     }
 
-    this.apiService = scope.resolve(ApiService);
     this.apiBasePath = baseUrl;
 
     const methodNames = Object.getOwnPropertyNames(

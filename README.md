@@ -96,6 +96,48 @@ export class AuthenticatedController extends BaseController {
 }
 ```
 
+### With Default Headers
+
+You can provide default headers that will be included in all requests. Custom headers passed to individual API methods will override default headers.
+
+```typescript
+export class ApiController extends BaseController {
+  constructor() {
+    super("https://api.example.com", process.env.API_TOKEN, {
+      "X-API-Version": "v1",
+      "X-Client-ID": "client-123",
+      "X-Custom-Header": "value",
+    });
+    // All requests automatically include:
+    // - Authorization: Bearer <token>
+    // - X-API-Version: v1
+    // - X-Client-ID: client-123
+    // - X-Custom-Header: value
+  }
+
+  async getUsers() {
+    // This request will include all default headers + token
+    const users = await this.apiService.get<User[]>("/users");
+    return users;
+  }
+
+  async getUserWithCustomHeaders(id: string) {
+    // Custom headers override defaults
+    const user = await this.apiService.get<User>(`/users/${id}`, {
+      "X-Custom-Header": "overridden-value", // Overrides default
+      "X-Request-ID": "123", // New header added
+    });
+    // Final headers:
+    // - Authorization: Bearer <token>
+    // - X-API-Version: v1 (from defaults)
+    // - X-Client-ID: client-123 (from defaults)
+    // - X-Custom-Header: overridden-value (overridden)
+    // - X-Request-ID: 123 (new)
+    return user;
+  }
+}
+```
+
 ## Framework Integration
 
 The SDK is designed to work seamlessly with any framework. Below are examples showing how to integrate it with popular frameworks.
@@ -754,13 +796,37 @@ The base class that provides API service and helper methods for building MVC con
 #### Constructor
 
 ```typescript
-constructor(baseUrl: string, token?: string)
+constructor(
+  baseUrl: string,
+  token?: string,
+  defaultHeaders?: HeadersInit
+)
 ```
 
 **Parameters:**
 
 - `baseUrl` (required): The base URL for your API (e.g., `"https://api.example.com"`)
-- `token` (optional): Authentication token that will be included in all requests as `Authorization: Bearer <token>`
+- `token` (optional): Authentication token that will be included in all requests as `Authorization: Bearer <token>`. If a custom `Authorization` header is provided in method calls, it will override this token.
+- `defaultHeaders` (optional): Default headers that will be included in all requests. Can be:
+
+  - `Record<string, string>` - Object with header key-value pairs
+  - `[string, string][]` - Array of header tuples
+  - `Headers` - Headers object
+
+  **Header Precedence:**
+
+  1. Default headers (lowest priority)
+  2. Custom headers passed to API methods (override defaults)
+  3. Token (overrides default Authorization, but custom Authorization headers take precedence)
+
+**Example:**
+
+```typescript
+const controller = new BaseController("https://api.example.com", "auth-token", {
+  "X-API-Version": "v1",
+  "X-Client-ID": "client-123",
+});
+```
 
 #### Protected Properties
 
@@ -817,7 +883,41 @@ const params = this.buildSearchParams(
 
 ### ApiService
 
-The API service provides HTTP methods for making requests.
+The API service provides HTTP methods for making requests. All methods support custom headers that will be merged with default headers and the authentication token.
+
+#### Header Precedence
+
+When making requests, headers are merged in the following order (higher priority overrides lower):
+
+1. **Default headers** (from constructor) - Lowest priority
+2. **Custom headers** (passed to method) - Override defaults
+3. **Token** (from constructor) - Overrides default Authorization, but custom Authorization headers take precedence
+
+**Example:**
+
+```typescript
+const controller = new BaseController(
+  "https://api.example.com",
+  "token-123",
+  { "X-API-Version": "v1" } // Default header
+);
+
+// Request includes: Authorization: Bearer token-123, X-API-Version: v1
+await controller.apiService.get("/users");
+
+// Custom header overrides default, token still added
+await controller.apiService.get("/users", {
+  "X-API-Version": "v2", // Overrides default v1
+  "X-Request-ID": "123", // New header
+});
+// Final headers: Authorization: Bearer token-123, X-API-Version: v2, X-Request-ID: 123
+
+// Custom Authorization overrides token
+await controller.apiService.get("/users", {
+  Authorization: "Bearer custom-token", // Overrides token-123
+});
+// Final headers: Authorization: Bearer custom-token, X-API-Version: v1
+```
 
 #### Methods
 
@@ -825,47 +925,115 @@ The API service provides HTTP methods for making requests.
 
 Make a GET request.
 
+**Parameters:**
+
+- `url` (required): The endpoint URL (relative to base URL)
+- `headers` (optional): Custom headers to include in the request
+- `customErrorMessage` (optional): Custom error message if request fails
+
+**Example:**
+
 ```typescript
+// Basic request
 const users = await this.apiService.get<User[]>("/users");
+
+// With custom headers
+const users = await this.apiService.get<User[]>("/users", {
+  "X-Request-ID": "123",
+  "X-Custom-Header": "value",
+});
 ```
 
 ##### `post<T>(url: string, body?: RequestBody, headers?: HeadersInit, customErrorMessage?: string): Promise<T>`
 
 Make a POST request.
 
+**Parameters:**
+
+- `url` (required): The endpoint URL (relative to base URL)
+- `body` (optional): Request body (object or FormData)
+- `headers` (optional): Custom headers to include in the request
+- `customErrorMessage` (optional): Custom error message if request fails
+
+**Example:**
+
 ```typescript
+// Basic POST request
 const newUser = await this.apiService.post<User>("/users", {
   name: "John Doe",
   email: "john@example.com",
 });
+
+// With custom headers
+const newUser = await this.apiService.post<User>(
+  "/users",
+  { name: "John Doe", email: "john@example.com" },
+  { "X-Request-ID": "123" }
+);
 ```
 
 ##### `put<T>(url: string, body?: RequestBody, headers?: HeadersInit, customErrorMessage?: string): Promise<T>`
 
 Make a PUT request.
 
+**Parameters:**
+
+- `url` (required): The endpoint URL (relative to base URL)
+- `body` (optional): Request body (object or FormData)
+- `headers` (optional): Custom headers to include in the request
+- `customErrorMessage` (optional): Custom error message if request fails
+
+**Example:**
+
 ```typescript
-const updatedUser = await this.apiService.put<User>("/users/123", {
-  name: "Jane Doe",
-});
+const updatedUser = await this.apiService.put<User>(
+  "/users/123",
+  { name: "Jane Doe" },
+  { "X-Request-ID": "123" }
+);
 ```
 
 ##### `patch<T>(url: string, body?: RequestBody, headers?: HeadersInit, customErrorMessage?: string): Promise<T>`
 
 Make a PATCH request.
 
+**Parameters:**
+
+- `url` (required): The endpoint URL (relative to base URL)
+- `body` (optional): Request body (object or FormData)
+- `headers` (optional): Custom headers to include in the request
+- `customErrorMessage` (optional): Custom error message if request fails
+
+**Example:**
+
 ```typescript
-const patchedUser = await this.apiService.patch<User>("/users/123", {
-  email: "newemail@example.com",
-});
+const patchedUser = await this.apiService.patch<User>(
+  "/users/123",
+  { email: "newemail@example.com" },
+  { "X-Request-ID": "123" }
+);
 ```
 
 ##### `delete<T>(url: string, headers?: HeadersInit, customErrorMessage?: string): Promise<T>`
 
 Make a DELETE request.
 
+**Parameters:**
+
+- `url` (required): The endpoint URL (relative to base URL)
+- `headers` (optional): Custom headers to include in the request
+- `customErrorMessage` (optional): Custom error message if request fails
+
+**Example:**
+
 ```typescript
+// Basic DELETE
 await this.apiService.delete("/users/123");
+
+// With custom headers
+await this.apiService.delete("/users/123", {
+  "X-Request-ID": "123",
+});
 ```
 
 ##### `setToken(token: string | undefined): void`
