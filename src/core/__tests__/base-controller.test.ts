@@ -16,12 +16,16 @@ const mockFetch = mock(() =>
 globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 class TestController extends BaseController {
-  public async testGet(endpoint: string) {
-    return this.apiService.get(endpoint);
+  public async testGet(endpoint: string, headers?: Record<string, string>) {
+    return this.apiService.get(endpoint, headers);
   }
 
-  public async testPost(endpoint: string, body?: RequestBody) {
-    return this.apiService.post(endpoint, body);
+  public async testPost(
+    endpoint: string,
+    body?: RequestBody,
+    headers?: Record<string, string>
+  ) {
+    return this.apiService.post(endpoint, body, headers);
   }
 
   public testGetApiUrl(endpoint: string): string {
@@ -344,6 +348,91 @@ describe("BaseController", () => {
       if (call?.[1]) {
         const headers = call[1].headers as Headers;
         expect(headers.get("Authorization")).toBe("Bearer test-token");
+      }
+    });
+
+    test("should initialize with baseUrl, token, and default headers", () => {
+      const defaultHeaders = {
+        "X-Custom-Header": "value",
+        "X-API-Version": "v1",
+      };
+      const controller = new TestController(
+        baseUrl,
+        "test-token",
+        defaultHeaders
+      );
+      expect(controller).toBeInstanceOf(BaseController);
+    });
+
+    test("should include default headers in requests", async () => {
+      const defaultHeaders = {
+        "X-Custom-Header": "default-value",
+        "X-API-Version": "v1",
+      };
+      const controller = new TestController(baseUrl, undefined, defaultHeaders);
+      await controller.testGet("/users");
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      expect(calls.length).toBeGreaterThan(0);
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("X-Custom-Header")).toBe("default-value");
+        expect(headers.get("X-API-Version")).toBe("v1");
+      }
+    });
+
+    test("should merge default headers with custom headers (custom takes precedence)", async () => {
+      const defaultHeaders = {
+        "X-Custom-Header": "default-value",
+        "X-API-Version": "v1",
+      };
+      const controller = new TestController(baseUrl, undefined, defaultHeaders);
+      await controller.testGet("/users", {
+        "X-Custom-Header": "custom-value",
+        "X-Request-ID": "123",
+      });
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      expect(calls.length).toBeGreaterThan(0);
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        // Custom header should override default
+        expect(headers.get("X-Custom-Header")).toBe("custom-value");
+        // Default header should still be present
+        expect(headers.get("X-API-Version")).toBe("v1");
+        // New custom header should be present
+        expect(headers.get("X-Request-ID")).toBe("123");
+      }
+    });
+
+    test("should include both token and default headers", async () => {
+      const defaultHeaders = {
+        "X-API-Version": "v1",
+        "X-Client-ID": "client-123",
+      };
+      const controller = new TestController(
+        baseUrl,
+        "test-token",
+        defaultHeaders
+      );
+      await controller.testGet("/users");
+
+      const calls = mockFetch.mock.calls as unknown as Array<
+        [string, RequestInit?]
+      >;
+      expect(calls.length).toBeGreaterThan(0);
+      const call = calls[0];
+      if (call?.[1]) {
+        const headers = call[1].headers as Headers;
+        expect(headers.get("Authorization")).toBe("Bearer test-token");
+        expect(headers.get("X-API-Version")).toBe("v1");
+        expect(headers.get("X-Client-ID")).toBe("client-123");
       }
     });
   });

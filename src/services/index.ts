@@ -11,6 +11,7 @@ export const AUTH_TOKEN = "ApiService:token";
 export default class ApiService {
   private readonly baseUrl: string;
   private token: string | undefined;
+  private readonly defaultHeaders: HeadersInit | undefined;
 
   constructor(
     @inject(BASE_URL) baseUrl: string,
@@ -18,6 +19,7 @@ export default class ApiService {
   ) {
     this.baseUrl = baseUrl;
     this.token = token;
+    this.defaultHeaders = undefined;
   }
 
   public setToken(token: string | undefined): void {
@@ -29,21 +31,36 @@ export default class ApiService {
    * Creates an ApiService instance without requiring dependency injection
    * @param baseUrl - The base URL for API requests
    * @param token - Optional authentication token
+   * @param defaultHeaders - Optional default headers to include in all requests
    * @returns A new ApiService instance
    */
-  static create(baseUrl: string, token?: string): ApiService {
+  static create(
+    baseUrl: string,
+    token?: string,
+    defaultHeaders?: HeadersInit
+  ): ApiService {
     const service = Object.create(ApiService.prototype) as ApiService;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const serviceInternal = service as any;
     serviceInternal.baseUrl = baseUrl;
     serviceInternal.token = token;
+    serviceInternal.defaultHeaders = defaultHeaders;
     return service;
   }
 
   private createHeaders(customHeaders: HeadersInit = {}): Headers {
-    const headers = new Headers(customHeaders);
+    // Start with default headers if provided
+    const headers = new Headers(this.defaultHeaders);
 
-    if (this.token && !headers.has("Authorization")) {
+    // Merge custom headers (custom headers take precedence over defaults)
+    const customHeadersObj = new Headers(customHeaders);
+    customHeadersObj.forEach((value, key) => {
+      headers.set(key, value);
+    });
+
+    // Add token only if Authorization header is not already set by custom headers
+    // This allows users to override the token with a custom Authorization header
+    if (this.token && !customHeadersObj.has("Authorization")) {
       headers.set("Authorization", `Bearer ${this.token}`);
     }
 
