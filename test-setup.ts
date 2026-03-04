@@ -1,4 +1,3 @@
-// Ensure reflect-metadata is loaded before any tsyringe imports
 import "reflect-metadata";
 
 /**
@@ -11,6 +10,4 @@ export function verifyReflectMetadata(): void {
   }
 }
 
-// Verify it's loaded on module initialization
 verifyReflectMetadata();
-

@@ -252,7 +252,7 @@ describe("ApiService", () => {
       >;
       const call = calls[0];
       if (call) {
-        expect(call[1]?.body).toBeUndefined();
+        expect(call[1]?.body).toBe("{}");
       }
     });
   });
