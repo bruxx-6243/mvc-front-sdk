@@ -87,6 +87,7 @@ jobs:
           fi
           echo "Build verification passed!"
 
+  # Deploy coverage report to GitHub Pages. Requires: Repo Settings → Pages → Source = "GitHub Actions"
   deploy-pages:
     needs: test
     runs-on: ubuntu-latest
