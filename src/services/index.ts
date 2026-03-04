@@ -131,7 +131,7 @@ export default class ApiService {
 
   public post<T>(
     url: string,
-    body?: RequestBody,
+    body: RequestBody = {},
     headers: HeadersInit = {},
     customErrorMessage?: string
   ): Promise<T> {
@@ -140,7 +140,7 @@ export default class ApiService {
 
   public put<T>(
     url: string,
-    body?: RequestBody,
+    body: RequestBody = {},
     headers: HeadersInit = {},
     customErrorMessage?: string
   ): Promise<T> {
@@ -149,7 +149,7 @@ export default class ApiService {
 
   public patch<T>(
     url: string,
-    body?: RequestBody,
+    body: RequestBody = {},
     headers: HeadersInit = {},
     customErrorMessage?: string
   ): Promise<T> {
